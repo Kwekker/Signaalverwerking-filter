@@ -15,6 +15,7 @@
 // De output van je digitale filter wordt d.m.v. de DAC op PIN A10 gezet.
 // De samplefrequentie van deze routine wordt bepaald door een timer interrupt.
 
+#define unless(condition) if(!(condition))
 
 //ADC_voltage:
 #define MAX_VALUE_ADC   2047                               // only 11 bits are used
@@ -87,7 +88,7 @@ ISR(ADCA_CH0_vect){
 	static cycle_t input = {{0, 0, 0, 0}, 0};
 	static cycle_t output = {{0, 0, 0, 0}, 0};	
 	
-	cyclePush(input, ADCA.CH0.RES);	
+	cyclePush(&input, ADCA.CH0.RES);	
 
 	for (uint8_t i = 0; i < 4; i++) {
 		endValue += numerator[i] * cycleGet(input, -i);
@@ -105,7 +106,7 @@ ISR(ADCA_CH0_vect){
 	// Check if output is not fucked
 	if (endValue >= (0b1 << 12)) PORTF.OUTSET = PIN0_bm;
 	
-	// Fucking amputate the LS 12 bits
+	// Fucking amputate the MS 52 bits
 	DACB.CH0DATA = endValue & 0x0fff;
 	while (!DACB.STATUS & DAC_CH0DRE_bm);
 }
