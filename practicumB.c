@@ -3,7 +3,9 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include <string.h>
+#include <inttypes.h>
 #include "clock.h"
+#include "serialF0.h"
 
 // De code is gemaakt door Eric Hoekstra voor de vakken Regeltechniek en Signaalverwerking.
 // De code is gebaseerd op het boek van Dhr W. Dolman, waarvoor dank.
@@ -56,6 +58,9 @@ typedef struct {
 int16_t cycleGet(cycle_t cycle, int8_t index);
 void cyclePush(cycle_t* cycle, int16_t value);
 
+char debug[4096];
+
+uint8_t printDebug = 0;
 
 int main(void) {
 	PORTC.DIRSET = PIN0_bm;	// the LED (bit 0 on port C) is set as output.
@@ -70,7 +75,16 @@ int main(void) {
 	PMIC.CTRL     |= PMIC_LOLVLEN_bm | PMIC_MEDLVLEN_bm;		// set low and medium level interrupts
 	sei();					//Enable interrupts
 	
+	init_stream(F_CPU);
+	
+	printf("\n\nThis is the start of a new test!\n");
+	
 	while (1) {
+		if (printDebug) {
+			printf("%s\n", debug);
+			printDebug = 0;
+		}
+		
 		asm volatile("nop");
 	}
 }
@@ -79,6 +93,7 @@ int main(void) {
 
 ISR(ADCA_CH0_vect){
 	PORTC.OUTTGL = PIN0_bm;	//Toggle the LED
+	PORTF.OUTCLR = PIN1_bm;
 	
 	// ay[n] + by[n-1] + cy[n-2] + dy[n-3] = px[n] + qx[n-1] + rx[n-2] + ux[n-3]
 	// ay[n] = px[n] + qx[n-1] + rx[n-2] + ux[n-3] - by[n-1] - cy[n-2] - dy[n-3]
@@ -97,14 +112,19 @@ ISR(ADCA_CH0_vect){
 		endValue += denominator[i] * cycleGet(output, -i);
 	}
 	
+	endValue /= denominator[0];	
+	
 	cyclePush(&output, endValue);
-
 
 	endValue *= ADC2DAC_NUM;
 	endValue /= ADC2DAC_DEN;
 	
 	// Check if output is not fucked
-	if (endValue >= (0b1 << 12)) PORTF.OUTSET = PIN0_bm;
+	if (endValue >= (0b1 << 12)) {
+		PORTF.OUTSET = PIN1_bm;
+		printDebug = 1;
+		sprintf(debug, "0x%08lx%08lx", *((uint32_t*)(&endValue)), (uint32_t)endValue);		
+	}
 	
 	// Fucking amputate the MS 52 bits
 	DACB.CH0DATA = endValue & 0x0fff;

@@ -161,9 +161,6 @@
     <Compile Include="serialF0.h">
       <SubType>compile</SubType>
     </Compile>
-    <None Include="digital_filter_main_empty.c">
-      <SubType>compile</SubType>
-    </None>
     <Compile Include="practicumB.c">
       <SubType>compile</SubType>
     </Compile>
