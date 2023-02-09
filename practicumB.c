@@ -20,7 +20,7 @@
 #define unless(condition) if(!(condition))
 
 //ADC_voltage:
-#define MAX_VALUE_ADC   2047                               // only 11 bits are used
+#define MAX_VALUE_ADC   2047
 #define VCC			(float) 3.3
 #define VREF		(float) VCC / 1.6
 
@@ -30,7 +30,7 @@
 
 //DAC
 #define MAX_VALUE_DAC 4095
-#define CAL_DAC 1.000  // Calibratiewaarde DAC
+#define CAL_DAC 1.000
 
 #define ADC2DAC (float)(VREF * MAX_VALUE_DAC * CAL_DAC) / ((MAX_VALUE_ADC + 1) * VCC)
 // 8445.9375 / 6758.4 = 1.24969482
@@ -43,8 +43,8 @@ void init_timer(void);
 
 
 // Coëfficients. * 10^11 / 10^11
-const int64_t numerator[]	= {260175, 780524, 780524, 260175};
-const int64_t denominator[]	= {10000000, -17294200, 13248000, -3872350};
+const int64_t numerator[]	= {230454, 691362, 691362, 230454};
+const int64_t denominator[]	= {10000000, -18191600, 14554900, -4519670};
 	
 // numerator * c:
 // c*a*x[n] + c*b*x[n-1] ...
@@ -105,7 +105,7 @@ ISR(ADCA_CH0_vect){
 	static cycle_t input = {{0, 0, 0, 0}, 0};
 	static cycle_t output = {{0, 0, 0, 0}, 0};	
 	
-	int32_t adcRes = -ADCA.CH0.RES;
+	int32_t adcRes = ADCA.CH0.RES;
 	cyclePush(&input, (int64_t)adcRes);
 	if(cycleGet(input, 0) < 0) {
 		printDebug = 1; 
