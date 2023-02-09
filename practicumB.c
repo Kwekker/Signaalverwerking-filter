@@ -12,7 +12,7 @@
 // Zie http://dolman-wim.nl/xmega/index.php voor de voorbeelden
 // De Code is bestemd voor de ATxmega256a3u
 
-// Dit programma leest d.m.v de ADC de spanning op PIN A2.
+// Dit programma leest d.m.v de ADC de spanning op PIN A2. 
 // Dit is de input van je digitale filter. Dit filter moet je zelf bouwen.
 // De output van je digitale filter wordt d.m.v. de DAC op PIN A10 gezet.
 // De samplefrequentie van deze routine wordt bepaald door een timer interrupt.
@@ -25,7 +25,7 @@
 #define VREF		(float) VCC / 1.6
 
 #define N		8UL
-#define F_CLK	300UL
+#define F_CLK	1000UL
 #define TC_PER	(F_CPU / ((N * F_CLK)) - 1)
 
 //DAC
@@ -43,15 +43,15 @@ void init_timer(void);
 
 
 // Coëfficients. * 10^11 / 10^11
-int64_t numerator[]		= {467263, 1401790, 1401790, 467263};
-int64_t denominator[]	= {100000000000, -295175000000, 290568000000, -95389600000};
+const int64_t numerator[]	= {260175, 780524, 780524, 260175};
+const int64_t denominator[]	= {10000000, -17294200, 13248000, -3872350};
 	
 // numerator * c:
 // c*a*x[n] + c*b*x[n-1] ...
 
 
 typedef struct {
-	int16_t buffer[4];
+	int64_t buffer[4];
 	uint8_t index : 2;
 } cycle_t;
 
@@ -66,6 +66,7 @@ int main(void) {
 	PORTC.DIRSET = PIN0_bm;	// the LED (bit 0 on port C) is set as output.
 	PORTB.DIRSET = PIN2_bm;
 	PORTF.DIRSET = PIN0_bm | PIN1_bm;
+	PORTA.DIRSET = PIN1_bm;
 
 	init_clock();
 	init_timer();			// init timer
@@ -100,16 +101,22 @@ ISR(ADCA_CH0_vect){
 	// y[n]  = (px[n] + qx[n-1] + rx[n-2] + ux[n-3] - by[n-1] - cy[n-2] - dy[n-3]) / a
 	
 	int64_t endValue = 0;
+	
 	static cycle_t input = {{0, 0, 0, 0}, 0};
 	static cycle_t output = {{0, 0, 0, 0}, 0};	
 	
-	cyclePush(&input, ADCA.CH0.RES);	
+	int32_t adcRes = -ADCA.CH0.RES;
+	cyclePush(&input, (int64_t)adcRes);
+	if(cycleGet(input, 0) < 0) {
+		printDebug = 1; 
+		sprintf(debug, "fuck %4x, %d", -ADCA.CH0.RES, adcRes < 0);	
+	}
 
 	for (uint8_t i = 0; i < 4; i++) {
 		endValue += numerator[i] * cycleGet(input, -i);
 	}
-	for (uint8_t i = 1; i < 4; i++) {
-		endValue += denominator[i] * cycleGet(output, -i);
+	for (uint8_t i = 0; i < 3; i++) {
+		endValue -= denominator[i + 1] * cycleGet(output, -i);
 	}
 	
 	endValue /= denominator[0];	
@@ -120,11 +127,7 @@ ISR(ADCA_CH0_vect){
 	endValue /= ADC2DAC_DEN;
 	
 	// Check if output is not fucked
-	if (endValue >= (0b1 << 12)) {
-		PORTF.OUTSET = PIN1_bm;
-		printDebug = 1;
-		sprintf(debug, "0x%08lx%08lx", *((uint32_t*)(&endValue)), (uint32_t)endValue);		
-	}
+	if (endValue >= (0b1 << 12)) PORTF.OUTSET = PIN1_bm;
 	
 	// Fucking amputate the MS 52 bits
 	DACB.CH0DATA = endValue & 0x0fff;
@@ -148,7 +151,7 @@ void cyclePush(cycle_t* cycle, int16_t value) {
 void init_timer(void){
 	TCE0.CTRLB     = TC_WGMODE_NORMAL_gc;	// Normal mode
 	TCE0.CTRLA     = TC_CLKSEL_DIV8_gc;	// prescaling 8 (N = 64)
-	//TCE0.INTCTRLA  = TC_OVFINTLVL_MED_gc;	// enable overflow interrupt medium level
+// 	TCE0.INTCTRLA  = TC_OVFINTLVL_MED_gc;	// enable overflow interrupt medium level
 	TCE0.PER       = TC_PER;	//(62499/2)*0.002;			// sampletijd ( (62499/2) = 1 sample/seconde).
 }
 
