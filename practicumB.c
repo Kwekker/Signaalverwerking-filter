@@ -42,7 +42,7 @@ void init_adc(void);
 void init_timer(void);
 
 
-// Coëfficients. * 10^11 / 10^11
+// Coefficients. * 10^11 / 10^11
 const int64_t numerator[]	= {230454, 691362, 691362, 230454};
 const int64_t denominator[]	= {10000000, -18191600, 14554900, -4519670};
 	
