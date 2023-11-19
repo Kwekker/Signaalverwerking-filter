@@ -1,0 +1,3 @@
+[submodule "AVRmake"]
+	path = AVRmake
+	url = git@github.com:TychoJ/AVRmake
